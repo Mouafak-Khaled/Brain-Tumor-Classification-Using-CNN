@@ -2,7 +2,7 @@
 Brain Tumor MRI Image Classification Using Convolution Neural Networks 
 
 
-# The Architecture of FashionNet:
+# The Architecture of BrainTumorCNN:
 ## 1. First Layer:
 
 * A 2D convolution layer:
