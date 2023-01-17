@@ -82,16 +82,16 @@ Brain Tumor MRI Image Classification Using Convolution Neural Networks
 
 | Train | Validation | Test |
 |-------|-------------|------|
-| 97.72%| 93.39%      | 93.82%|
+| 98.89%| 96.98%      | 97.10%|
 
 * Precision, recall, and f1-score:
 
 | classes | precision | recall | f1-score | support |
 |---------|-----------|--------|----------|---------|
-| Glioma       | 0.96      | 0.87   | 0.92     | 300    |
-| Meningioma      | 0.91      | 0.90   | 0.90     | 306     |
-| No Tumor       | 0.95      | 0.98   | 0.96     | 405     |
-| Pituitery      | 0.93      | 0.98   | 0.96     | 300     |
+| Glioma       | 0.97      | 0.97   | 0.98     | 300    |
+| Meningioma      | 0.95      | 0.95   | 0.95     | 306     |
+| No Tumor       | 0.98      | 0.98   | 0.98     | 405     |
+| Pituitery      | 0.99      | 0.98   | 0.98     | 300     |
 
 
 
