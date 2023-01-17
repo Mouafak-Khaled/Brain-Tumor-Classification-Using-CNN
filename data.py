@@ -22,6 +22,7 @@ class BrainTumorDataset(Dataset):
         
     def __init__(self, root_dir : str,
                  mode : str,
+                 split=False,
                  preprocess=False,
                  transforms=None,
                  augment_transforms=None):
@@ -29,13 +30,15 @@ class BrainTumorDataset(Dataset):
        
         self.data_path = root_dir
         self.preprocess=preprocess
+        self.split = split
         self.transforms = transforms
         self.mode = mode
         self.augment_transforms=augment_transforms 
-       
-            
-        self.images, self.labels = self.read_data()
+        self.images, self.labels = None, None
         self.classes = self._get_classes()
+
+        if split == True or mode == 'Testing':   
+            self.images, self.labels = self.read_data()
         
       
     
@@ -53,6 +56,9 @@ class BrainTumorDataset(Dataset):
     def set_transforms(self, new_transforms):
         self.transforms = new_transforms
                   
+                  
+    def set_augment_transforms(self, augment_transforms):
+        self.augment_transforms = augment_transforms
     
     
     def read_data(self):
@@ -70,13 +76,50 @@ class BrainTumorDataset(Dataset):
                     labels.append(label)  
         return images, labels
     
-    def indecis(self):
-        indecis = torch.randperm(len(self.labels))
-        return indecis
     
+    def indices(self):
+        torch.manual_seed(0)
+        indices = torch.randperm(len(self.labels))
+        return indices
+    
+    
+    def split_data(self, ratio, augment=False):
+        
+        if self.mode == 'Training' and self.split == True:
+        
+            num_train, num_val = split_samples(len(self.labels), ratio)
+            indices = self.indices()
+            train_set = BrainTumorDataset(self.data_path,
+                                        self.mode,
+                                        preprocess=self.preprocess,
+                                        transforms=self.transforms)
+            
+            train_set.labels = [self.labels[i] for i in indices[:num_train]]
+            train_set.images = [self.images[i] for i in indices[:num_train]]
+            
+            if augment:
+                augment_transforms = get_augment_transforms()
+                train_set.set_augment_transforms(augment_transforms)
+            
+            val_set = BrainTumorDataset(self.data_path,
+                                        self.mode,
+                                        preprocess=self.preprocess,
+                                        transforms=self.transforms)
+            val_set.labels = [self.labels[i] for i in indices[num_train:]]
+            val_set.images = [self.images[i] for i in indices[num_train:]]
+            
+            return train_set, val_set
+        
     
     def class_count(self):
         return torch.bincount(torch.tensor(self.labels))
+    
+    
+    def class_weights_for_sampler(self, device=None):
+        num_per_class = self.class_count() 
+        weights = [1/num_per_class[i] for i in self.labels]
+        weights = torch.FloatTensor(weights, device=device)
+        return weights
     
     
     def class_weights(self, beta=0.999):
@@ -95,7 +138,6 @@ class BrainTumorDataset(Dataset):
     def plot_data_distribution(self):
         x = self.classes
         y = np.bincount(self.labels)
-        
         fig, ax = plt.subplots()
         bars = ax.barh(x, y)
         ax.bar_label(bars)
@@ -113,8 +155,9 @@ class BrainTumorDataset(Dataset):
         
         image = Image.open(self.images[index]).convert('RGB')
         label = torch.as_tensor(self.labels[index])
+        
         if self.augment_transforms:
-            image = self.augment_transform(image)   
+            image = self.augment_transforms(image)   
             
         image = self.apply_preprocessing(image)
         image = F.adjust_sharpness(img=image, sharpness_factor=2)
@@ -128,57 +171,6 @@ class BrainTumorDataset(Dataset):
             
         return image, label
         
-  
 
-class Subset(Dataset):
-    
-    def __init__(self, dataset, indices, transforms=None, augment_transforms=None):
-        
-        self.dataset = dataset
-        self.indices = indices
-        self.transforms = transforms
-        self.augment_transforms=augment_transforms
-        
-        
-    def __len__(self):
-        return len(self.indices)
-    
-    def data_distribution(self):
-        
-        
-        dist = np.array([0, 0, 0, 0])
-        for i in self.indices:
-            img, label =  self.dataset[i] 
-            dist[label] +=1
-        
-        return dist
-            
-            
-    def plot_data_distribution(self):
-        x = self.dataset.classes
-       
-        y = self.data_distribution()
-        
-        fig, ax = plt.subplots()
-        bars = ax.barh(x, y)
-        ax.bar_label(bars)
-        plt.title("Class Distribution")
-        plt.ylabel("Class Name")
-        plt.xlabel("Class Count")
-        plt.show()
-    
-    
-    def __getitem__(self, index):
-        img, label = self.dataset[self.indices[index]]
-        
-        if self.transforms is not None:
-            img = self.transforms(img)
-            
-        if self.augment_transforms is not None:
-            img = self.augment_transforms(img)
-            
-        return img, label
-    
-        
         
         

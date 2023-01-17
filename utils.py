@@ -9,6 +9,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
+from typing import Union, Tuple, List
 
 
 IMG_SIZE = 256
@@ -51,10 +52,9 @@ def load_model(param_name, path):
     return model_state_dict
 
 
-def _write_to_a_json_file(mean, std, filename):
+def save_mean_and_std(mean, std, filename):
 
     file_path = os.path.join(os.getcwd(), filename)
-
     stats = {"mean": mean,
              "std": std}
 
@@ -62,39 +62,28 @@ def _write_to_a_json_file(mean, std, filename):
         file.write(json.dumps(stats))
 
 
-def calculate_mean_and_std(dataset, filename):
-    channels_sum, channels_squared_sum= 0, 0
-    N = len(dataset)
-    for img, _ in dataset:
-        # Mean over batch, height and width, but not over the channels
-        channels_sum += torch.mean(img, dim=[1,2])
-        channels_squared_sum += torch.mean(img ** 2, dim=[1, 2])
+def calculate_mean_and_std(data_loader):
+    mean, std = 0., 0.
+    num_samples = 0
     
-    mean = channels_sum / N
-    std = (channels_squared_sum / N - mean ** 2) ** 0.5 
-    _write_to_a_json_file(mean.tolist(), std.tolist(), filename)
-    return mean , std
-
-
-def calculate_mean_and_std_2(data_loader, N, img_size, filename):
-    channels_sum, channels_squared_sum= 0, 0
-    N = N * img_size * img_size 
     for imgs, _ in data_loader:
-        # Mean over batch, height and width, but not over the channels
-        channels_sum += imgs.sum(dim=[0, 2 , 3])
-        channels_squared_sum += (imgs ** 2).sum(dim=[0, 2, 3])
+        imgs_in_a_batch = imgs.size(0)
+        imgs = imgs.view(imgs_in_a_batch, 3, -1)
+        mean += imgs.mean(-1).sum(0)
+        std += imgs.std(-1).sum(0)
+        num_samples += imgs_in_a_batch
     
-    mean = channels_sum / N
-    std = (channels_squared_sum / N - mean ** 2) ** 0.5 
-    _write_to_a_json_file(mean.tolist(), std.tolist(), filename)
-    return mean , std
+    mean = (mean / num_samples).tolist()
+    std = (std / num_samples).tolist()
+    return mean, std
 
 
-        
-def get_mean_and_std(dataset, N, img_size, filename, redo=False):
+def get_mean_and_std(data_loader, filename, redo=False):
+    
     stats_dict = None
     if os.path.exists(filename) == False or redo == True:
-        mean, std = calculate_mean_and_std_2(dataset,N, img_size, filename)
+        mean, std = calculate_mean_and_std(data_loader)
+        save_mean_and_std(mean, std, filename)
     else:
         with open(filename, 'r') as json_file:
             stats_dict = json.loads(json_file.read())
@@ -112,41 +101,53 @@ def get_augment_transforms():
         T.RandomAutocontrast(p=0.6),
         T.RandomRotation(degrees=45)])
     
-    
-def get_transforms(mean=None, std=None):
-    
-    trans_dict = {
-        # 'resize':T.Resize([224, 224]),
-        'ToTensor': T.ToTensor(),
-        'Normalize': None}
-    
-    if mean != None and std != None:
-        trans_dict['Normalize'] = T.Normalize(mean=mean, 
-                                              std=std)
-    
-    transforms = T.Compose([trans_dict[key] for key in trans_dict if trans_dict[key] != None])
-    
-    return transforms
 
-
-def split_samples(num_samples : int, ratio : float):
+def split_samples(num_samples : int,
+                  ratio : Union[float,
+                                List[float],
+                                Tuple[float]]):
+    """
+    A function that calculates the number of samples used for training
+    and validation with respect to a certain ration
     
-    train_samples = int(num_samples * ratio)
+    ...
+    Args:
+        num_samples: int
+            The total number of samples in the dataset
+        ratio: float or (list, tuple) of size 2
+            The proportion used to specify the numer of samples used for training
+            For training: num_samples * ratio
+            For validation: num_samples - training_samples
+    
+    ...
+    
+    """
+    if isinstance(ratio, (list, tuple)):
+        train_samples = int(num_samples * ratio[0])
+    else:
+        train_samples = int(num_samples * ratio)
+        
     validation_samples = num_samples - train_samples
     return (train_samples, validation_samples)
 
 
-def custom_lr_factor(epoch):
-    if epoch < 8:
-        return 1
-    elif epoch >=8 and epoch < 15:
-        return 0.5
-    else:
-        return 0.2 
-
-
 def predictions(model, data_loader, device):
+    """
+    A function that collect the predicted labels estimated by the BrainTumorClassifier
+    for each corresponding true label
     
+    ...
+    Args:
+        model: BrainTumorClassifier
+            A trained instance of the BrainTumorClassifier
+        data_loader: torch.utils.data.DataLoader
+            A data loader that provide the imgs and true labels for the model
+        device: str
+            A CUDA GPU or CPU
+    
+    ...
+    
+    """
     y_pred, y_true = [], []
 
     for imgs, labels in data_loader:
@@ -168,11 +169,41 @@ def predictions(model, data_loader, device):
      
     
 def calculate_confusion_matrix(y_true, y_pred):
+    """
+    A function that returns the confusion matrix returned by 
+    confusion_matrix(y_true, y_pred) from scikit-learn
+    
+    ...
+    
+    Args:
+        y_true: list
+            A list of integers contains the true labels of the corresponding images
+        Y_pred : list
+            A list of integers contains the labels predicted by the BrainTumorClassifier
+
+    ...
+    
+    """
+    
     return confusion_matrix(y_true, y_pred)
 
 
 def plot_cf_matrix(cf_matrix, classes):
+    """
+    A function used to plot the confusion matrix as a heatmap table
     
+    ...
+    
+    Args:
+        cf_matrix: ndarray
+            The confusion matrix generated by 
+            confusion_matrix(y_true, y_pred) from scikit-learn
+        classes : list
+            A list of strings containing the class labels
+    
+    ...
+    
+    """
     
     cf_matrix_dataFrame = pd.DataFrame(cf_matrix, index = classes, columns = classes)
     fig, ax = plt.subplots()    
@@ -180,12 +211,29 @@ def plot_cf_matrix(cf_matrix, classes):
     sns.heatmap(cf_matrix_dataFrame, annot=True, fmt='.0f')
     plt.yticks(rotation=0) 
     plt.xticks(rotation=0) 
-
     plt.show()
     
  
 def get_classification_report(y_true, y_pred, labels=None, target_names=None):
+    """
+    A function that returns the classification report generted from scikit-learn
+    using the true and predicted labels
     
+    ...
+    
+    Args:
+        y_true: list
+            A list of integers contains the true labels of the corresponding images
+        Y_pred : list
+            A list of integers contains the labels predicted by the BrainTumorClassifier
+        labels: list
+            An optional list of label indices to include in the report
+        target_names:
+            An optional list of string containing the names of classes matching the labels
+
+    ...
+    
+    """
     return classification_report(y_true=y_true,
                                  y_pred=y_pred,
                                  labels=labels,
