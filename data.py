@@ -10,11 +10,7 @@ from torchvision.utils import save_image
 from utils import *
 from preprocessing import *
 import torchvision.transforms.functional as F
-
-
-def check_mode(mode : str):
-    assert mode.lower() in ['training', 'testing'], "Wrong value for data mode!"
-    
+   
     
 MODE = ['Training', 'Testing']
 

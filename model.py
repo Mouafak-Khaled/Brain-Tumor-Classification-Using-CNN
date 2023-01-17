@@ -11,12 +11,10 @@ class BrainTumorClasssifer(nn.Module):
         self.num_classes = num_classes
         self.bias = bias
         
-        self.relu = nn.LeakyReLU(negative_slope=0.1)
+        self.lrelu = nn.LeakyReLU(negative_slope=0.1)
         self.dropout = nn.Dropout(p=0.25, inplace=False)
-        self.dropout2d = nn.Dropout2d(p=0.5)
         
         self.conv = nn.Conv2d(self.in_channels, 128, kernel_size=3, stride=(2, 2), bias=self.bias)
-        self.mp = nn.MaxPool2d(kernel_size=3, stride=(2, 2))
         self.bn = nn.BatchNorm2d(128)
 
         self.conv1 = nn.Conv2d(128, 256, kernel_size=3, stride=(2, 2), bias=self.bias)
@@ -53,15 +51,15 @@ class BrainTumorClasssifer(nn.Module):
     
     def forward(self, x):
         
-        x = self.relu(self.bn(self.conv(x)))
-        x = self.relu(self.bn1(self.mp1(self.conv1(x))))   
-        x = self.relu(self.bn2(self.mp2(self.conv2(x))))
-        x = self.relu(self.bn3(self.mp3(self.conv3(x))))
+        x = self.lrelu(self.bn(self.conv(x)))
+        x = self.lrelu(self.bn1(self.mp1(self.conv1(x))))   
+        x = self.lrelu(self.bn2(self.mp2(self.conv2(x))))
+        x = self.lrelu(self.bn3(self.mp3(self.conv3(x))))
 
         x = self.flatten(x)
         
-        x = self.relu(self.dropout(self.ln1(self.fc1(x))))
-        x = self.relu(self.dropout(self.ln2(self.fc2(x))))
+        x = self.lrelu(self.dropout(self.ln1(self.fc1(x))))
+        x = self.lrelu(self.dropout(self.ln2(self.fc2(x))))
         
         x = self.fc3(x)
         return x

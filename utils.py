@@ -12,9 +12,6 @@ import matplotlib.pyplot as plt
 from typing import Union, Tuple, List
 
 
-IMG_SIZE = 256
-
-
 def get_device():
     """
     Checks if a CUDA device is available
@@ -46,6 +43,7 @@ def load_model(param_name, path):
         - path: the path where the model parameters exists
     return the model state dictionary
     """
+    
     path = os.path.join(path, param_name)
     with open(path, 'rb') as file:
         model_state_dict = torch.load(file)['model_state_dict']
@@ -53,7 +51,24 @@ def load_model(param_name, path):
 
 
 def save_mean_and_std(mean, std, filename):
-
+    """
+    Thies functions takes the mean and standard deviation of the dataset
+    and save it to a JSON file.
+    
+    ...
+    Args:
+        mean: list or float 
+            A single or a list of float values represent the mean of the dataset 
+        std: list or float 
+            A single or a list of float values represent the standard deviation
+            of the dataset 
+        filename: str
+            A string value that represents the file name where the data will be
+            saved into
+    ...
+    
+    """
+    
     file_path = os.path.join(os.getcwd(), filename)
     stats = {"mean": mean,
              "std": std}
@@ -63,6 +78,16 @@ def save_mean_and_std(mean, std, filename):
 
 
 def calculate_mean_and_std(data_loader):
+    """
+    A function that calculates the mean and standard deviation of the dataset
+    
+    ...
+    Args:
+        data_loader: tourch.utils.data.DataLoader
+            A data loader that provides the data for calculation
+    ...
+    """
+    
     mean, std = 0., 0.
     num_samples = 0
     
@@ -79,7 +104,22 @@ def calculate_mean_and_std(data_loader):
 
 
 def get_mean_and_std(data_loader, filename, redo=False):
+    """
+    A function that retreives the mean and standard deviation of the dataset
+    from the saved JSON file if exict. if not, it call the calculate_mean_and_std
+    function to calculate the mean and std
     
+    ...
+    Args:
+        data_loader: tourch.utils.data.DataLoader
+            A data loader that provides the data for calculation
+        filename: str
+            The JSON file that contains the calculated mean and std
+        redo: boolean
+            If True -> calculate the mean and std even if they were saved to JSON file
+            if False -> retreive the saved values if they exict. otherwise, calculate them
+    ...
+    """
     stats_dict = None
     if os.path.exists(filename) == False or redo == True:
         mean, std = calculate_mean_and_std(data_loader)

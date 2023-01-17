@@ -45,21 +45,4 @@ def crop_img(img):
     return new_img
 
 
-def preprocessing(data_path, mode):
-
-    data_path = os.path.join(data_path, mode)
-    dir_list = os.listdir(data_path)
-
-    for dir in dir_list:
-        save_path = os.path.join(data_path, dir)
-        path = os.path.join(data_path,dir)
-        image_dir = os.listdir(path)
-        for img in image_dir:
-            image = cv2.imread(os.path.join(path,img))      
-            new_img = crop_img(image)
-            new_img = cv2.resize(new_img,(IMG_SIZE,IMG_SIZE))
-            if not os.path.exists(save_path):
-                os.makedirs(save_path)
-            cv2.imwrite(os.path.join(save_path, img), new_img)
-
 
